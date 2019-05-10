@@ -1,5 +1,5 @@
 variables:
-  githubConnection: walfie-sandbox
+  githubConnection: walfie
   binaryName: rust-azure-pipelines-example
 
 trigger:
