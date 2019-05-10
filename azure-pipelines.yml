@@ -34,18 +34,20 @@ jobs:
   strategy:
     matrix:
       linux:
-        imageName: ubuntu-16.04
-        rustup_toolchain: stable
+        vmImage: ubuntu-16.04
+        target: x86_64-unknown-linux-gnu
       mac:
-        imageName: macos-10.13
-        rustup_toolchain: stable
+        vmImage: macos-10.13
+        target: x86_64-apple-darwin
       windows:
-        imageName: vs2017-win2016
-        rustup_toolchain: stable
+        vmImage: vs2017-win2016
+        target: x86_64-pc-windows-gnu
   pool:
-    vmImage: $(imageName)
+    vmImage: $(vmImage)
   steps:
   - template: ci/install-rust.yml
+    parameters:
+      target: $(TARGET)
   - script: cargo build --all
     displayName: cargo build
   - script: cargo test --all
@@ -57,15 +59,15 @@ jobs:
     matrix:
       musl:
         target: x86_64-unknown-linux-musl
-        imageName: ubuntu-16.04
+        vmImage: ubuntu-16.04
       gnu:
         target: x86_64-unknown-linux-gnu
-        imageName: ubuntu-16.04
+        vmImage: ubuntu-16.04
       mac:
         target: x86_64-apple-darwin
-        imageName: macos-10.13
+        vmImage: macos-10.13
   pool:
-    vmImage: $(imageName)
+    vmImage: $(vmImage)
   steps:
     - script: |
         DATE="$(date +%Y-%m-%d)"
