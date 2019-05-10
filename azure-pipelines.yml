@@ -14,10 +14,10 @@ jobs:
     vmImage: ubuntu-16.04
   container: rust:latest
   steps:
-  - displayName: Install clippy
-    script: rustup component add clippy
-  - displayName: Run clippy
-    script: cargo clippy --all
+  - script: rustup component add clippy
+    displayName: Install clippy
+  - script: cargo clippy --all
+    displayName: Run clippy
 
 - job: rustfmt
   pool:
@@ -25,10 +25,10 @@ jobs:
   container: rust:latest
   condition: eq(variables['Build.Reason'], 'PullRequest')
   steps:
-  - displayName: Install rustfmt
-    script: rustup component add rustfmt
-  - displayName: Run rustfmt
-    script: cargo fmt --all -- --check
+  - script: rustup component add rustfmt
+    displayName: Install rustfmt
+  - script: cargo fmt --all -- --check
+    displayName: Run rustfmt
 
 - job: Test
   strategy:
@@ -45,23 +45,23 @@ jobs:
   pool:
     vmImage: $(imageName)
   steps:
-  - displayName: Install Rust
-    condition: ne(variables['Agent.OS'], "Windows_NT")
-    script: |
+  - script: |
       curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain $RUSTUP_TOOLCHAIN
       echo "##vso[task.setvariable variable=PATH;]$PATH:$HOME/.cargo/bin"
-  - displayName: Install Rust (Windows)
-    condition: eq(variables['Agent.OS'], 'Windows_NT')
-    script: |
+    displayName: Install Rust
+    condition: ne(variables['Agent.OS'], "Windows_NT")
+  - script: |
         curl -sSf -o rustup-init.exe https://win.rustup.rs
         rustup-init.exe -y --default-toolchain %RUSTUP_TOOLCHAIN%
         echo "##vso[task.setvariable variable=PATH;]%PATH%;%USERPROFILE%\.cargo\bin"
-  - displayName: Show Rust version
-    script: rustc -Vv && cargo -V
-  - displayName: cargo build
-    script: cargo build --all
-  - displayName: cargo test
-    script: cargo test --all
+    displayName: Install Rust (Windows)
+    condition: eq(variables['Agent.OS'], 'Windows_NT')
+  - script: rustc -Vv && cargo -V
+    displayName: Show Rust version
+  - script: cargo build --all
+    displayName: cargo build
+  - script: cargo test --all
+    displayName: cargo test
 
 - job: Release
   condition: startsWith(variables['Build.SourceBranch'], 'refs/tags/')
@@ -79,21 +79,20 @@ jobs:
   pool:
     vmImage: $(imageName)
   steps:
-    - displayName: Create date variable
-      script: |
+    - script: |
         DATE="$(date +%Y-%m-%d)"
         echo "##vso[task.setvariable variable=build.date]$DATE"
-    - displayName: Create release tag variable
-      script: |
+      displayName: Create date variable
+    - script: |
         RELEASE_TAG="${RELEASE_TAG#refs/tags/}"
         echo $RELEASE_TAG
         echo "##vso[task.setvariable variable=build.release_tag]$RELEASE_TAG"
-    - displayName: Install Rust
-      script: |
+      displayName: Create release tag variable
+    - script: |
         curl https://sh.rustup.rs -sSf | sh -s -- -y
         echo "##vso[task.setvariable variable=PATH;]$PATH:$HOME/.cargo/bin"
-    - displayName: Install cross
-      script: |
+      displayName: Install Rust
+    - script: |
         # Workaround until this is merged: https://github.com/rust-embedded/cross/pull/169
         set -eou
         TEMP_DIR=$(mktemp -d)
@@ -103,23 +102,24 @@ jobs:
         sed -i 's/"-it"/"-i"/' src/docker.rs
         cargo install --path .
         rm -rf "$D"
-    - displayName: Build
-      script: cross build --release --all --target $TARGET
-    - displayName: Copy assets
-      task: CopyFiles@2
+      displayName: Install cross
+    - script: cross build --release --all --target $TARGET
+      displayName: Build
+    - task: CopyFiles@2
+      displayName: Copy assets
       inputs:
         sourceFolder: $(Build.SourcesDirectory)/target/$(TARGET)/release
         contents: $(binaryName)
         targetFolder: $(Build.BinariesDirectory)/$(binaryName)
-    - displayName: Archive/compress assets
-      task: ArchiveFiles@2
+    - task: ArchiveFiles@2
+      displayName: Archive/compress assets
       inputs:
         rootFolderOrFile: $(Build.BinariesDirectory)/$(binaryName)
         archiveType: tar
         tarCompression: gz
         archiveFile: $(Build.ArtifactStagingDirectory)/$(binaryName)-$(build.release_tag)-$(TARGET).tar.gz
-    - displayName: Release to GitHub
-      task: GithubRelease@0
+    - task: GithubRelease@0
+      displayName: Release to GitHub
       inputs:
         gitHubConnection: $(githubConnection)
         repositoryName: $(Build.Repository.Name) 
