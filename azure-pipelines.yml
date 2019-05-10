@@ -1,0 +1,134 @@
+variables:
+  githubConnection: walfie-sandbox
+  binaryName: rust-azure-pipelines-example
+
+trigger:
+  branches:
+    include: ["*"]
+  tags:
+    include: ["*"]
+
+jobs:
+- job: clippy
+  pool:
+    vmImage: ubuntu-16.04
+  container: rust:latest
+  steps:
+  - displayName: Install clippy
+    script: rustup component add clippy
+  - displayName: Run clippy
+    script: cargo clippy --all
+
+- job: rustfmt
+  pool:
+    vmImage: ubuntu-16.04
+  container: rust:latest
+  condition: eq(variables['Build.Reason'], 'PullRequest')
+  steps:
+  - displayName: Install rustfmt
+    script: rustup component add rustfmt
+  - displayName: Run rustfmt
+    script: cargo fmt --all -- --check
+
+- job: Test
+  strategy:
+    matrix:
+      windows-stable:
+        imageName: vs2017-win2016
+        rustup_toolchain: stable
+      mac-stable:
+        imageName: macos-10.13
+        rustup_toolchain: stable
+      linux-stable:
+        imageName: ubuntu-16.04
+        rustup_toolchain: stable
+  pool:
+    vmImage: $(imageName)
+  steps:
+  - displayName: Install Rust
+    condition: ne(variables['Agent.OS'], "Windows_NT")
+    script: |
+      curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain $RUSTUP_TOOLCHAIN
+      echo "##vso[task.setvariable variable=PATH;]$PATH:$HOME/.cargo/bin"
+  - displayName: Install Rust (Windows)
+    condition: eq(variables['Agent.OS'], 'Windows_NT')
+    script: |
+        curl -sSf -o rustup-init.exe https://win.rustup.rs
+        rustup-init.exe -y --default-toolchain %RUSTUP_TOOLCHAIN%
+        echo "##vso[task.setvariable variable=PATH;]%PATH%;%USERPROFILE%\.cargo\bin"
+  - displayName: Show Rust version
+    script: rustc -Vv && cargo -V
+  - displayName: cargo build
+    script: cargo build --all
+  - displayName: cargo test
+    script: cargo test --all
+
+- job: Release
+  condition: startsWith(variables['Build.SourceBranch'], 'refs/tags/')
+  strategy:
+    matrix:
+      musl:
+        target: x86_64-unknown-linux-musl
+        imageName: ubuntu-16.04
+      gnu:
+        target: x86_64-unknown-linux-gnu
+        imageName: ubuntu-16.04
+      mac:
+        target: x86_64-apple-darwin
+        imageName: macos-10.13
+  pool:
+    vmImage: $(imageName)
+  steps:
+    - displayName: Create date variable
+      script: |
+        DATE="$(date +%Y-%m-%d)"
+        echo "##vso[task.setvariable variable=build.date]$DATE"
+    - displayName: Create release tag variable
+      script: |
+        RELEASE_TAG="${RELEASE_TAG#refs/tags/}"
+        echo $RELEASE_TAG
+        echo "##vso[task.setvariable variable=build.release_tag]$RELEASE_TAG"
+    - displayName: Install Rust
+      script: |
+        curl https://sh.rustup.rs -sSf | sh -s -- -y
+        echo "##vso[task.setvariable variable=PATH;]$PATH:$HOME/.cargo/bin"
+    - displayName: Install cross
+      script: |
+        # Workaround until this is merged: https://github.com/rust-embedded/cross/pull/169
+        set -eou
+        TEMP_DIR=$(mktemp -d)
+        git clone https://github.com/rust-embedded/cross.git $TEMP_DIR
+        cd $TEMP_DIR
+        git checkout v0.1.14
+        sed -i 's/"-it"/"-i"/' src/docker.rs
+        cargo install --path .
+        rm -rf "$D"
+    - displayName: Build
+      script: cross build --release --all --target $TARGET
+    - displayName: Copy assets
+      task: CopyFiles@2
+      inputs:
+        sourceFolder: $(Build.SourcesDirectory)/target/$(TARGET)/release
+        contents: $(binaryName)
+        targetFolder: $(Build.BinariesDirectory)/$(binaryName)
+    - displayName: Archive/compress assets
+      task: ArchiveFiles@2
+      inputs:
+        rootFolderOrFile: $(Build.BinariesDirectory)/$(binaryName)
+        archiveType: tar
+        tarCompression: gz
+        archiveFile: $(Build.ArtifactStagingDirectory)/$(binaryName)-$(build.release_tag)-$(TARGET).tar.gz
+    - displayName: Release to GitHub
+      task: GithubRelease@0
+      inputs:
+        gitHubConnection: $(githubConnection)
+        repositoryName: $(Build.Repository.Name) 
+        action: edit
+        target: $(build.sourceVersion)
+        tagSource: manual
+        tag: $(build.release_tag)
+        assets: $(Build.ArtifactStagingDirectory)/$(binaryName)-$(build.release_tag)-$(TARGET).tar.gz
+        title: $(build.release_tag) - $(build.date)
+        assetUploadMode: replace
+        addChangeLog: true
+
