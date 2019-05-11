@@ -1,3 +1,4 @@
 fn main() {
-    println!("Hello, world!");
+    // This should fail the rustfmt check
+        println!("Hello, world!");
 }
