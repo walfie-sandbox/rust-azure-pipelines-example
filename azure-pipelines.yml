@@ -63,10 +63,10 @@ jobs:
       mac:
         target: x86_64-apple-darwin
         vmImage: macos-10.13
-      windows:
+      windows-msvc:
         vmImage: vs2017-win2016
         target: x86_64-pc-windows-msvc
-      windows:
+      windows-gnu:
         vmImage: vs2017-win2016
         target: x86_64-pc-windows-gnu
   pool:
