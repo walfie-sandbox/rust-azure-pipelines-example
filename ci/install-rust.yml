@@ -19,9 +19,9 @@ steps:
   displayName: "Install rust (Windows)"
   condition: eq(variables['Agent.OS'], 'Windows_NT')
 
-- script: rustup target add ${{parameters.target}}
-  condition: and(succeeded(), ne(parameters.target, ''))
-  displayName: Install target
+- ${{ if ne(parameters.target, '') }}:
+  - script: rustup target add ${{parameters.target}}
+    displayName: Install target
 
 - script: rustc -Vv && cargo -V
   displayName: Check rust version

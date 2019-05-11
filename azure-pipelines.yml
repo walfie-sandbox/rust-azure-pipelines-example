@@ -43,8 +43,6 @@ jobs:
     vmImage: $(vmImage)
   steps:
   - template: ci/install-rust.yml
-    parameters:
-      target: $(TARGET)
   - script: cargo build --all
     displayName: cargo build
   - script: cargo test --all
