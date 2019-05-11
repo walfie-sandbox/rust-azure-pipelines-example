@@ -60,51 +60,53 @@ jobs:
       musl:
         target: x86_64-unknown-linux-musl
         vmImage: ubuntu-16.04
-      gnu:
-        target: x86_64-unknown-linux-gnu
-        vmImage: ubuntu-16.04
       mac:
         target: x86_64-apple-darwin
         vmImage: macos-10.13
+      windows:
+        vmImage: vs2017-win2016
+        target: x86_64-pc-windows-msvc
+      windows:
+        vmImage: vs2017-win2016
+        target: x86_64-pc-windows-gnu
   pool:
     vmImage: $(vmImage)
   steps:
     - script: |
-        DATE="$(date +%Y-%m-%d)"
-        echo "##vso[task.setvariable variable=build.date]$DATE"
-      displayName: Create date variable
-    - script: |
+        RELEASE_TAG="$(Build.SourceBranch)"
         RELEASE_TAG="${RELEASE_TAG#refs/tags/}"
         echo $RELEASE_TAG
-        echo "##vso[task.setvariable variable=build.release_tag]$RELEASE_TAG"
+        echo "##vso[task.setvariable variable=build.releaseTag]$RELEASE_TAG"
       displayName: Create release tag variable
     - template: ci/install-rust.yml
-    - script: |
-        # Workaround until this is merged: https://github.com/rust-embedded/cross/pull/169
-        set -eou
-        TEMP_DIR=$(mktemp -d)
-        git clone https://github.com/rust-embedded/cross.git $TEMP_DIR
-        cd $TEMP_DIR
-        git checkout v0.1.14
-        sed -i 's/"-it"/"-i"/' src/docker.rs
-        cargo install --path .
-        rm -rf $TEMP_DIR
-      displayName: Install cross
-    - script: cross build --release --all --target $TARGET
+      parameters:
+        target: $(TARGET)
+    - script: cargo build --release --all --target $TARGET
       displayName: Build
     - task: CopyFiles@2
       displayName: Copy assets
       inputs:
         sourceFolder: $(Build.SourcesDirectory)/target/$(TARGET)/release
-        contents: $(binaryName)
+        contents: |
+          $(binaryName)
+          $(binaryName).exe
         targetFolder: $(Build.BinariesDirectory)/$(binaryName)
     - task: ArchiveFiles@2
-      displayName: Archive/compress assets
+      displayName: Archive/compress assets (Linux/Mac)
+      condition: ne(variables['Agent.OS'], 'Windows_NT')
       inputs:
         rootFolderOrFile: $(Build.BinariesDirectory)/$(binaryName)
         archiveType: tar
         tarCompression: gz
-        archiveFile: $(Build.ArtifactStagingDirectory)/$(binaryName)-$(build.release_tag)-$(TARGET).tar.gz
+        archiveFile: $(Build.ArtifactStagingDirectory)/$(binaryName)-$(build.releaseTag)-$(TARGET).tar.gz
+    - task: ArchiveFiles@2
+      displayName: Archive/compress assets (Windows)
+      condition: eq(variables['Agent.OS'], 'Windows_NT')
+      inputs:
+        rootFolderOrFile: $(Build.BinariesDirectory)/$(binaryName)
+        archiveType: zip
+        tarCompression: none
+        archiveFile: $(Build.ArtifactStagingDirectory)/$(binaryName)-$(build.releaseTag)-$(TARGET).zip
     - task: GithubRelease@0
       displayName: Release to GitHub
       inputs:
@@ -113,9 +115,11 @@ jobs:
         action: edit
         target: $(build.sourceVersion)
         tagSource: manual
-        tag: $(build.release_tag)
-        assets: $(Build.ArtifactStagingDirectory)/$(binaryName)-$(build.release_tag)-$(TARGET).tar.gz
-        title: $(build.release_tag) - $(build.date)
+        tag: $(build.releaseTag)
+        assets: |
+          $(Build.ArtifactStagingDirectory)/$(binaryName)-$(build.releaseTag)-$(TARGET).tar.gz
+          $(Build.ArtifactStagingDirectory)/$(binaryName)-$(build.releaseTag)-$(TARGET).zip
+        title: $(build.releaseTag)
         assetUploadMode: replace
         addChangeLog: true
 
