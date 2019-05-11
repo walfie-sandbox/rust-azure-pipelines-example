@@ -12,8 +12,6 @@ jobs:
 - job: clippy
   pool:
     vmImage: ubuntu-16.04
-    demands:
-    - Agent.Version -gtVersion 2.148.2
   container: rust:latest
   steps:
   - script: rustup component add clippy
