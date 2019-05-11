@@ -12,6 +12,8 @@ jobs:
 - job: clippy
   pool:
     vmImage: ubuntu-16.04
+    demands:
+    - Agent.Version -gtVersion 2.148.2
   container: rust:latest
   steps:
   - script: rustup component add clippy
@@ -109,7 +111,7 @@ jobs:
       displayName: Release to GitHub
       inputs:
         gitHubConnection: $(githubConnection)
-        repositoryName: $(Build.Repository.Name) 
+        repositoryName: $(Build.Repository.Name)
         action: edit
         target: $(build.sourceVersion)
         tagSource: manual
