@@ -7,7 +7,7 @@ tag-prefix = ""
 tag-message = "Release version {{version}} (cargo-release)"
 
 pre-release-commit-message = "Release version {{version}} (cargo-release)"
-pro-release-commit-message = "Set version to {{version}} for development (cargo-release)"
+pro-release-commit-message = "Set version to {{next_version}} for development (cargo-release)"
 
 # Ensure we're on master before attempting to release
 pre-release-hook = ["git", "checkout", "master"]

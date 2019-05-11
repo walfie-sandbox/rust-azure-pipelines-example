@@ -12,6 +12,7 @@ jobs:
 - job: clippy
   pool:
     vmImage: ubuntu-16.04
+  condition: eq(variables['Build.Reason'], 'PullRequest')
   steps:
   - template: ci/install-rust.yml
   - script: rustup component add clippy
@@ -72,16 +73,16 @@ jobs:
         RELEASE_TAG="${RELEASE_TAG#refs/tags/}"
         echo $RELEASE_TAG
         echo "##vso[task.setvariable variable=releaseTag]$RELEASE_TAG"
-      displayName: Create release tag variable
+      displayName: Get release tag
     - template: ci/install-rust.yml
       parameters:
-        target: $(TARGET)
-    - script: cargo build --release --all --target $TARGET
+        target: $(target)
+    - script: cargo build --release --all --target $(target)
       displayName: Build
     - task: CopyFiles@2
       displayName: Copy assets
       inputs:
-        sourceFolder: $(Build.SourcesDirectory)/target/$(TARGET)/release
+        sourceFolder: $(Build.SourcesDirectory)/target/$(target)/release
         contents: |
           $(binaryName)
           $(binaryName).exe
@@ -93,7 +94,7 @@ jobs:
         rootFolderOrFile: $(Build.BinariesDirectory)/$(binaryName)
         archiveType: tar
         tarCompression: gz
-        archiveFile: $(Build.ArtifactStagingDirectory)/$(binaryName)-$(releaseTag)-$(TARGET).tar.gz
+        archiveFile: $(Build.ArtifactStagingDirectory)/$(binaryName)-$(releaseTag)-$(target).tar.gz
     - task: ArchiveFiles@2
       displayName: Archive/compress assets (Windows)
       condition: and(succeeded(), eq(variables['Agent.OS'], 'Windows_NT'))
@@ -101,7 +102,7 @@ jobs:
         rootFolderOrFile: $(Build.BinariesDirectory)/$(binaryName)
         archiveType: zip
         tarCompression: none
-        archiveFile: $(Build.ArtifactStagingDirectory)/$(binaryName)-$(releaseTag)-$(TARGET).zip
+        archiveFile: $(Build.ArtifactStagingDirectory)/$(binaryName)-$(releaseTag)-$(target).zip
     - task: GithubRelease@0
       displayName: Release to GitHub
       inputs:
@@ -112,9 +113,9 @@ jobs:
         tagSource: manual
         tag: $(releaseTag)
         assets: |
-          $(Build.ArtifactStagingDirectory)/$(binaryName)-$(releaseTag)-$(TARGET).tar.gz
-          $(Build.ArtifactStagingDirectory)/$(binaryName)-$(releaseTag)-$(TARGET).zip
-        title: $(build.releaseTag)
+          $(Build.ArtifactStagingDirectory)/$(binaryName)-$(releaseTag)-$(target).tar.gz
+          $(Build.ArtifactStagingDirectory)/$(binaryName)-$(releaseTag)-$(target).zip
+        title: $(releaseTag)
         assetUploadMode: replace
         addChangeLog: true
 
