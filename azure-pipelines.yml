@@ -1,6 +1,6 @@
 variables:
-  githubConnection: walfie
-  binaryName: rust-azure-pipelines-example
+  github_connection: walfie
+  binary_name: rust-azure-pipelines-example
 
 trigger:
   branches:
@@ -69,7 +69,7 @@ jobs:
         RELEASE_TAG="$(Build.SourceBranch)"
         RELEASE_TAG="${RELEASE_TAG#refs/tags/}"
         echo $RELEASE_TAG
-        echo "##vso[task.setvariable variable=releaseTag]$RELEASE_TAG"
+        echo "##vso[task.setvariable variable=release_tag]$RELEASE_TAG"
       displayName: Get release tag
     - template: ci/install-rust.yml
       parameters:
@@ -81,38 +81,38 @@ jobs:
       inputs:
         sourceFolder: $(Build.SourcesDirectory)/target/$(target)/release
         contents: |
-          $(binaryName)
-          $(binaryName).exe
-        targetFolder: $(Build.BinariesDirectory)/$(binaryName)
+          $(binary_name)
+          $(binary_name).exe
+        targetFolder: $(Build.BinariesDirectory)/$(binary_name)
     - task: ArchiveFiles@2
       displayName: Archive/compress assets (Linux/Mac)
       condition: and(succeeded(), ne(variables['Agent.OS'], 'Windows_NT'))
       inputs:
-        rootFolderOrFile: $(Build.BinariesDirectory)/$(binaryName)
+        rootFolderOrFile: $(Build.BinariesDirectory)/$(binary_name)
         archiveType: tar
         tarCompression: gz
-        archiveFile: $(Build.ArtifactStagingDirectory)/$(binaryName)-$(releaseTag)-$(target).tar.gz
+        archiveFile: $(Build.ArtifactStagingDirectory)/$(binary_name)-$(release_tag)-$(target).tar.gz
     - task: ArchiveFiles@2
       displayName: Archive/compress assets (Windows)
       condition: and(succeeded(), eq(variables['Agent.OS'], 'Windows_NT'))
       inputs:
-        rootFolderOrFile: $(Build.BinariesDirectory)/$(binaryName)
+        rootFolderOrFile: $(Build.BinariesDirectory)/$(binary_name)
         archiveType: zip
         tarCompression: none
-        archiveFile: $(Build.ArtifactStagingDirectory)/$(binaryName)-$(releaseTag)-$(target).zip
+        archiveFile: $(Build.ArtifactStagingDirectory)/$(binary_name)-$(release_tag)-$(target).zip
     - task: GithubRelease@0
       displayName: Release to GitHub
       inputs:
-        gitHubConnection: $(githubConnection)
+        gitHubConnection: $(github_connection)
         repositoryName: $(Build.Repository.Name)
         action: edit
         target: $(Build.SourceVersion)
         tagSource: manual
-        tag: $(releaseTag)
+        tag: $(release_tag)
         assets: |
-          $(Build.ArtifactStagingDirectory)/$(binaryName)-$(releaseTag)-$(target).tar.gz
-          $(Build.ArtifactStagingDirectory)/$(binaryName)-$(releaseTag)-$(target).zip
-        title: $(releaseTag)
+          $(Build.ArtifactStagingDirectory)/$(binary_name)-$(release_tag)-$(target).tar.gz
+          $(Build.ArtifactStagingDirectory)/$(binary_name)-$(release_tag)-$(target).zip
+        title: $(release_tag)
         assetUploadMode: replace
         addChangeLog: true
 
