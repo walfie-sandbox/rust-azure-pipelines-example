@@ -53,18 +53,18 @@ jobs:
   condition: startsWith(variables['Build.SourceBranch'], 'refs/tags/')
   strategy:
     matrix:
-      musl:
+      linux-musl:
         target: x86_64-unknown-linux-musl
         vmImage: ubuntu-16.04
       mac:
         target: x86_64-apple-darwin
         vmImage: macos-10.13
       windows-msvc:
-        vmImage: vs2017-win2016
         target: x86_64-pc-windows-msvc
-      windows-gnu:
         vmImage: vs2017-win2016
+      windows-gnu:
         target: x86_64-pc-windows-gnu
+        vmImage: ubuntu-16.04
   pool:
     vmImage: $(vmImage)
   steps:
